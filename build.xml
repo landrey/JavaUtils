@@ -1,0 +1,45 @@
+<project name="fr.loria.madynes.javautils" basedir="." default="maintarget">
+	<property name="src.dir"	value="src"/>
+	<property name="bin.dir"   	value="bin"/>
+	<property name="jar.dir"        value="."/>
+	<property name="jar.name"       value="fr.loria.madynes.javautils.jar"/>
+	<property name="classes.dir"    value="${bin.dir}"/>
+
+	<target name="compile" depends="resources">
+	    <mkdir dir="${classes.dir}"/>
+	    <javac srcdir="${src.dir}" 
+		   destdir="${classes.dir}"
+		   debug="on"
+            />
+	</target>
+
+	<target name="resources">
+		<copy todir="${bin.dir}/fr/loria/madynes/javautils/images" >
+		    <fileset dir="${src.dir}/fr/loria/madynes/javautils/" />
+		</copy>
+		<!--Defaut Messages bundle is US (the only one for now.
+			TODO: translate and add a property to select default language. -->
+		<copy   file = "${src.dir}/fr/loria/madynes/javautils/MessagesBundle_en.properties"
+				todir="${bin.dir}/fr/loria/madynes/javautils/MessagesBundle.properties" 
+		/>
+		<!-- Copy all available languages messages bundles -->
+		<copy  todir="${bin.dir}/fr/loria/madynes/animjavaexec">
+			<fileset dir="${src.dir}/fr/loria/madynes/javautils">
+				<include name="MessagesBundle_*.properties"/>
+			</fileset>
+		</copy>
+	</target>	
+	
+	<target name="clean">
+		<delete includeemptydirs="true">
+	  		<fileset dir="${bin.dir}" includes="**/*"/>
+	 	</delete>
+	</target>
+    <target name="jar" depends="compile">
+      <jar destfile="${jar.dir}/${jar.name}"
+	   basedir="${bin.dir}"
+      />
+    </target>
+    <target name="maintarget" depends="clean"/>
+</project>
+
