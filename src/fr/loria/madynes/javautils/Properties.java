@@ -1,17 +1,4 @@
-//    Copyright (C) 2008  Emmanuel Nataf
-//
-//    This program is free software: you can redistribute it and/or modify
-//    it under the terms of the GNU General Public License as published by
-//    the Free Software Foundation, either version 3 of the License, or
-//    (at your option) any later version.
-//
-//    This program is distributed in the hope that it will be useful,
-//    but WITHOUT ANY WARRANTY; without even the implied warranty of
-//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//    GNU General Public License for more details.
-//
-//    You should have received a copy of the GNU General Public License
-//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
     	
 
 /* 
@@ -50,12 +37,14 @@ import java.io.InputStream;
 import java.io.PrintStream;
 
 /**
+ * Utility  class  to handle resources in concrete packages
  * 
  * @author andrey
  * 
+ * 
  * TODO: 
- *  - add mechanism (smth like a ._SYSOVERIDEN  key suffix) to get system property  (or environment) value 
- * first instead of properties file's one, if it exists.
+ * - use hierarchical properties files  and load/store method (which only apply to last file) to handle default/preferences
+ * mechanism. 
  *
  */
 public  class Properties {
@@ -112,7 +101,9 @@ public  class Properties {
 		public static final String COLOR_TYPE_STR="C";
 		public static final String STRING_TYPE_STR="S";
 		public static final String INT_TYPE_STR="I";
-		
+		public static final String LOG_LEVEL_TYPE_STR="LL";
+	// Take system property first if exists. (-D option)
+	public static final String SYS_PROP_FIRST_KEY_SUFFIX = "._sysfirst";	
 	public static final char STRING_LIST_SEPARATOR=';';
 	//private static final String dimensionWidthSuffix = ".width";
 	//private static final String dimensionHeightSuffix = ".height";
@@ -146,7 +137,7 @@ public  class Properties {
 	}
 	
 	/**
-	 * get an application level message.
+	 * get an application level messages.
 	 * @param key a name in the global messages bundle.
 	 */
 	public static String getMessage(String key){
@@ -197,7 +188,7 @@ public  class Properties {
 	}
 	
 	/** Get the properties associated to a resource name (class loader name).
-	 * We use a factory method to multiple properties object for a given resource and avoid
+	 * We use a factory method to create properties object for a given resource and avoid
 	 * several LOCAL preferences creation for the same resource.
 	 * 
 	 * @param baseName a resource name in dotted notation
@@ -207,7 +198,7 @@ public  class Properties {
 		Properties result=builtProperties.get(baseName);
 		if (result==null){
 			result=new Properties(baseName);
-			builtProperties.put(baseName, result); // keep the ref to the new bundle, and so ensure unicity. 
+			builtProperties.put(baseName, result); // keep the ref to the new bundle, and so ensure uniqueness. 
 		}
 		return result;
 	}
@@ -345,12 +336,15 @@ public  class Properties {
 	
 	/** Get editable (=possible preferences) properties keys
 	 * 
-	 * @return
+	 * "key._editable" properties key are not return even if a "key._editable._editable" exits. 
+	 * So key._editable, are not editable.
+	 * 
+	 * @return a sorted set of preferences keys
 	 */
 	public SortedSet<String> editablePropertiesKeySet(){
 		SortedSet<String> result=new TreeSet<String>();
-		Set<String> propKeys=propertiesKeySet();
-		// take all key prefix  with  EDITABLE_KEY_SUFFIX as suffix 
+		Set<String> propKeys=this.propertiesKeySet(); // =this.configuration.keySet()
+		// take all key prefixes  with  EDITABLE_KEY_SUFFIX as a suffix 
 		for (String key: propKeys){
 			if (!key.endsWith(EDITABLE_KEY_SUFFIX) && propKeys.contains(key+EDITABLE_KEY_SUFFIX)){ // or this.getOptinalBooleanProperty(key+editableSuffix, false) ?
 				result.add(key);
@@ -458,6 +452,31 @@ public  class Properties {
 		}
 		return result;
 	}
+	
+	/** Check if property must be taken for system property first.
+	 * 
+	 * Remark: properties set using command line option -D are seen as System properties.
+	 * This property on property must be set in default properties file, 
+	 * try to set one of these "meta" properties in a preferences file has no effect.
+	 * 
+	 * @param key the property key
+	 * @return true if the property with the given key must be taken from System properties first
+	 */
+	public boolean takeSystemPropertyFirst(String key){
+		// check in properties only not in preferences
+		return this.configuration.containsKey(key+SYS_PROP_FIRST_KEY_SUFFIX);
+	}
+	
+	/** Check if property actually comes from System properties.
+	 * 
+	 * @param key the property key
+	 * @return true if the property will be taken from System 
+	 * 		   AND exists in System properties.
+	 */
+	public boolean comesFromSystem(String key){
+		return this.configuration.containsKey(key+SYS_PROP_FIRST_KEY_SUFFIX) &&
+			System.getProperties().containsKey(key);
+	}
 	/**
 	 * Get a (string) Property
 	 * @param property property key
@@ -492,9 +511,10 @@ public  class Properties {
 		return getOptionalProperty(property, null);
 	}
 	
-	/** Get a mandatory integer property.
+	/** Get a mandatory integer property. Raised Exception.
 	 *  
-	 *  NO EXCEPTION are caught. NumberFormatException and some other runtime exception might be raised.
+	 * NO EXCEPTION are caught. NumberFormatException and some other runtime exception might be raised.
+	 *  
 	 * @param property
 	 * @return
 	 */
@@ -557,6 +577,29 @@ public  class Properties {
 		return byDefault;
 	}
 	
+	public Level getLogLevelProperty(String property){
+			try{	
+				return Level.parse(this.getString(property));
+			}catch (Exception e){
+				LogManager.getLogManager().getLogger("").logp(Level.SEVERE, 
+						 this.getClass().getName(),
+						 "getLogLevel",
+						 this.baseName+": Mandatory (log) Level property "+property+" is missing");
+			}
+			return null;
+	}
+	public Level getOptionalLogLevelProperty(String property, Level byDefault){
+		try{	
+			return Level.parse(this.getString(property));
+		}catch (Exception e){
+			LogManager.getLogManager().getLogger("").logp(Level.WARNING, 
+					 this.getClass().getName(),
+					 "getLogLevel",
+					 this.baseName+": Optional (log) Level property "+property+"  not present");
+		}
+		return byDefault;
+	}
+	
 	// A basic color name in a properties files  is a name matching the  static FIELD name in Color class
 	// Ex: black, white...
 	private static Pattern colorByNamePattern=Pattern.compile("\\p{Alpha}+");
@@ -579,7 +622,7 @@ public  class Properties {
 		if (m.matches()){
 			// sRGBpattern has 5 groups. Group 0 is the overall match, but last group (extra space) 
 			// is *never* returned by m.group(..) ! Bug ?
-			// THat is why we add this extra group (\\p{Space}*) to be able to get last (4th) byte group.
+			// That is why we add this extra group (\\p{Space}*) to be able to get last (4th) byte group.
 			result=new Color(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), 
 					Integer.parseInt(m.group(3)), Integer.parseInt(m.group(4)));
 		}
@@ -826,7 +869,17 @@ public  class Properties {
 	 */
 	public String getString(String key) throws NullPointerException, 
 		MissingResourceException, ClassCastException{
-			String result=prefs.get(key);
+		//if (!key.endsWith(EDITABLE_KEY_SUFFIX) && propKeys.contains(key+EDITABLE_KEY_SUFFIX)){
+			String result=null;
+			if (this.takeSystemPropertyFirst(key)){
+				result=System.getProperty(key);
+				if (result!=null){
+					Logger.getLogger("").logp(Level.INFO,
+							this.getClass().getName(), "getString", "get property "+key+" from System properties"); //TODO externalize message.
+					return result;
+				}
+			}
+			result=prefs.get(key);
 			if (result==null){
 				result=this.configuration.getString(key);
 			}
@@ -921,7 +974,7 @@ public  class Properties {
 		}
 	}
 	/**
-	 * Add an observer which will be informed of nay change on any property (or preferences).
+	 * Add an observer which will be informed of any change on any property (or preferences).
 	 * 
 	 * @param observer
 	 */

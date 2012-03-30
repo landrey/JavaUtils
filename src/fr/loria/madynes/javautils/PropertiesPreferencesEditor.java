@@ -90,7 +90,7 @@ implements ItemListener, ActionListener {
 		super();
 		this.editedProperties=properties;
 		this.applicationMessages=messages;
-		this.defaultMessages=null;// see getMessage().
+		this.defaultMessages=null;// see this.getMessage().
 		ImageIcon reloadIcon;
 		try{
 			String reloadIconPath=properties.getString(reloadIconPropertyKey);
@@ -144,6 +144,7 @@ implements ItemListener, ActionListener {
 			if (dimLabel==null){
 				dimLabel=lb.getPreferredSize();
 				dimLabel.setSize(500, dimLabel.height); // Force width, but not height...
+				//TODO: 500 as properties...
 			}
 			lb.setPreferredSize(dimLabel);
 			lb.setEditable(false);
@@ -153,7 +154,10 @@ implements ItemListener, ActionListener {
 			}
 			//scrolledPanel.add(lb);
 			scrolledPanel.add(lb, spgbc);
-			
+			// Add a little something for properties actually coming from System (and editable...)...
+			if (properties.comesFromSystem(key)){
+				lb.setBackground(Color.red); // TODO: push RED as a properties. 
+			}
 			// edit property according to its type...
 			String typeStr=properties.getPropertyType(key); // look-up in properties not in messages. May be null.
 			//JComponent edit=null;
@@ -162,13 +166,16 @@ implements ItemListener, ActionListener {
 				if (Properties.BOOLEAN_TYPE_STR.equals(typeStr)){
 					/*---
 					JCheckBox cb=new JCheckBox();
-					cb.setSelected(properties.getOptinalBooleanProperty(key, true)); // TODO: default for typed but missing properties;
+					cb.setSelected(properties.getOptinalBooleanProperty(key, true)); 
+					// TODO: default for typed but missing properties;
 					cb.addItemListener(this);
 					edit=cb;
 					--*/
 					pv=new BooleanPropertyView(this, key);
 				} else if(Properties.COLOR_TYPE_STR.equals(typeStr)){
 					pv=new ColorPropertyView(this, key);
+				} else if(Properties.LOG_LEVEL_TYPE_STR.equals(typeStr)){
+					pv=new LogLevelPropertyView(this, key);
 				}
 			}
 			
@@ -221,14 +228,16 @@ implements ItemListener, ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		if (TEXT_EDITED_CMD.equals(e.getActionCommand())){
 			JTextField tf=(JTextField)e.getSource();
+			// TODO: add a Properties.validate(key, value) and use it here !
 			this.editedProperties.setPreference(tf.getName(), tf.getText());
 		}else if(RESET_TO_DEFAULT_CMD.equals(e.getActionCommand())){
-			JButton b=(JButton)e.getSource();
+			JButton b=(JButton)e.getSource(); 
 			this.editedProperties.removePreference(b.getName());
 		}else if(CHOOSE_COLOR_CMD.equals(e.getActionCommand())){
 			JButton b=(JButton)e.getSource();
 			Color c=JColorChooser.showDialog(b, "Pick up a color", b.getBackground());
 			if (c!=null){
+				// no need for validation. We got a Color object.
 				this.editedProperties.setPreference(b.getName(), c);
 			}
 		}else{
@@ -245,7 +254,7 @@ implements ItemListener, ActionListener {
 		protected abstract void updateFromProperties(Properties prop, String key, String value);
 		protected void doMoreInit(String key, int height){
 			JComponent v=this.getView();
-			// may be not enought is view is mode of several Component triggering action =>
+			// may be not enough if view is made of several Components triggering action =>
 			// sub class MUST setName of inner components to allow actionListener (propertiesEditor) to works correctly.
 			v.setName(key);
 			v.setToolTipText(key);
@@ -279,7 +288,8 @@ implements ItemListener, ActionListener {
 		private  BooleanPropertyView(PropertiesPreferencesEditor pEdit, String key){
 			super(pEdit, key);
 			cb=new JCheckBox();
-			cb.setSelected(pEdit.editedProperties.getOptinalBooleanProperty(key, true)); // TODO: default for typed but missing (badly written) properties;
+			cb.setSelected(pEdit.editedProperties.getOptinalBooleanProperty(key, true)); 
+			// TODO: default for typed but missing (badly written) properties;
 			cb.addItemListener(pEdit);
 		}
 		@Override
@@ -312,10 +322,12 @@ implements ItemListener, ActionListener {
 			this.p.add(this.tf);
 			this.p.add(this.cl);
 		}
+		
 		@Override
 		protected void updateFromProperties(Properties prop, String key, String value) {
 			this.tf.setText(value);
-			// Re-sucks from properties (TODO: add a public static stringToColor conversion  method in Properties)...
+			// Re-sucks from properties 
+			// TODO: add a public static stringToColor conversion  method in Properties class...
 			Color newcolor=prop.getOptinalColorProperty(key, Color.WHITE); //TODO: default color then color is not good + error message to user.
 			cl.setForeground(newcolor);
 			cl.setBackground(newcolor); 
@@ -339,6 +351,13 @@ implements ItemListener, ActionListener {
 			this.cl.setPreferredSize(d);
 		}
 	}
+	// TO DO CHECK...
+	static private class LogLevelPropertyView extends StringPropertyView {
+		private  LogLevelPropertyView(PropertiesPreferencesEditor pEdit, String key){
+			super(pEdit, key);
+		}
+	}
+	
 	private String getMessage(String key, String def){
 		assert def!=null;
 		String res=null;

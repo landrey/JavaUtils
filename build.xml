@@ -15,7 +15,7 @@
 
 	<target name="resources">
 		<copy todir="${bin.dir}/fr/loria/madynes/javautils/images" >
-		    <fileset dir="${src.dir}/fr/loria/madynes/javautils/" />
+		    <fileset dir="${src.dir}/fr/loria/madynes/javautils/images" />
 		</copy>
 		<!--Defaut Messages bundle is US (the only one for now.
 			TODO: translate and add a property to select default language. -->
@@ -23,7 +23,7 @@
 				todir="${bin.dir}/fr/loria/madynes/javautils/MessagesBundle.properties" 
 		/>
 		<!-- Copy all available languages messages bundles -->
-		<copy  todir="${bin.dir}/fr/loria/madynes/animjavaexec">
+		<copy  todir="${bin.dir}/fr/loria/madynes/javautils">
 			<fileset dir="${src.dir}/fr/loria/madynes/javautils">
 				<include name="MessagesBundle_*.properties"/>
 			</fileset>

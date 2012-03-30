@@ -1,4 +1,4 @@
-This set of java java utilities provide:
+This set of java java utilities provides:
      - A thin layer on top of standard java Properties which provides:
        * A couple of "typed" properties (getBoolean, getOptionalBoolean...)
        * A way to save properties in user file = PREFERENCES
